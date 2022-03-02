@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>MTech Access - Technical Assessment</title>
+		<style>
+			* {
+				outline: none;
+				padding: 0;
+				border: 0;
+				margin: 0;
+			}
+			html, body {
+				position: absolute;
+				left: 0;
+				top: 0;
+				width: 100%;
+				width: 100vw;
+				height: 100%;
+				height: 100vh;
+				background: black;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="container" style="width:100%; height:400px;"></div>
+		<select id="category"></select>
+		<script src="https://code.highcharts.com/highcharts.js" async></script>
+		<script>
+			//Run code only when the page is loaded/completed
+			((callback) => {
+				if('function' === typeof(callback)) {
+					if(document && 'complete' === document.readyState) {
+						callback();
+					} else {
+						document.addEventListener('readystatechange', () => {
+							if('complete' === document.readyState) {
+								callback();
+							}
+						});
+					}
+				}
+			})(() => {
+				//Function to load test-data.json / AJAX
+				const getData = () => {
+					return new Promise((next, reject) => {
+						const xhr = new XMLHttpRequest();
+						xhr.open('GET', '/test-data.json', true);
+						xhr.responseType = 'json';
+						xhr.onload = () => {
+							if(200 === xhr.status) {
+								next(xhr.response);
+							} else {
+								reject(xhr);
+							}
+						};
+						xhr.send();
+					});
+				};
+
+				getData().then((data) => {
+					let category	= document.querySelector('#category'),
+						categories	= {},
+						names		= [],
+						dataset		= null,
+						chart		= Highcharts.chart('container', {
+							chart	: {type: 'areaspline'},
+							title	: {text: 'Test Data'},
+							xAxis	: {categories: []},
+							series	: [{
+								type	:'line',
+								data	: []
+							}]
+						}),
+						switchData = (dataset) => {
+							chart.update({
+								title	: {text: dataset},		//Update the title, with dataset ('stat1'/'stat2')
+								xAxis	: {categories: names},	//Update the category titles with [names]
+								series	: [{
+									type	: 'line',
+									data	: [...categories[dataset]]	//Update the graph points with an array clone (...[]) - Highcharts update manipulates source data
+								}]
+							});
+						};
+					//Go through the data from 'test-data.json'
+					data.forEach((row) => {
+						names.push(row.name);
+						Object.keys(row).forEach((key) => {
+							if('name' != key) {	//Ignore the key if it's 'name', we want to pull 'stat1' or 'stat2'
+								if(!categories.hasOwnProperty(key)) {
+									if(!dataset) {dataset = key;}
+									categories[key] = [];
+									let option = document.createElement('option');
+									option.value = option.textContent = key;
+									if(key === dataset) {
+										option.setAttribute('selected', '');
+									}
+									category.appendChild(option);
+								}
+								categories[key].push(row[key]);
+							}
+						});
+					});
+
+					//Whenever the dropdown below the graph changes, change the dataset to match
+					category.addEventListener('change', () => {
+						switchData(category.value);
+					});
+					switchData(dataset);//Change the dataset to the first key found from test-data - 'stat1'
+				}).catch((error) => {
+					//Handle error properly, display content to match UI/UX - Failed to load graph data because (404? Empty? Invalid formatting/json - etc)
+					console.log({error});
+				});
+			});
+		</script>
+	</body>
+</html>
